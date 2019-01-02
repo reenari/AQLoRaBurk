@@ -111,15 +111,19 @@ void SDS011::queryData() {
   _serial->write(_txBuff, sizeof(_txBuff));
 }
 
-void SDS011::loop() {
+
+String SDS011::loop() {
+  String ret="-";
   static uint8_t index = 0;
   if (_serial->available()) {  // fill rxBuffer
+    ret="fill" + String(index);
     _rxBuff[index] = _serial->read();
     if (_rxBuff[0] == 0xAA) {  // advance if HEAD is received
       ++index;
     }
   }
   if (_rxBuff[9] == 0xAB) {  // process when TAIL is received
+    ret="all";
     if (!_checkCRC(_rxBuff, _rxBuff[8])) {  // 1. check CRC
       if (_onError) _onError(-1);           // 2. signal error on fail
     } else {
@@ -138,6 +142,7 @@ void SDS011::loop() {
     memset(_rxBuff, 0x00, sizeof(_rxBuff));
     index = 0;
   }
+  return ret;
 }
 
 uint8_t SDS011::_getCRC(uint8_t buff[]) {

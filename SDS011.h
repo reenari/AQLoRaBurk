@@ -46,7 +46,7 @@ class SDS011 {
   void setWorkingPeriod(uint8_t period);  // period in minutes: work 30 seconds, sleep period*60 - 30 seconds
   void queryData();
   // void queryData();
-  void loop();
+  String loop();
 
  private:
   uint8_t _getCRC(uint8_t buff[]);

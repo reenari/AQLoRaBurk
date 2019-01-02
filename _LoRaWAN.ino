@@ -27,23 +27,30 @@ const lmic_pinmap lmic_pins = {
 void onEvent (ev_t ev) {
   Serial.print(os_getTime());
   Serial.print(": ");
+  loraMsg=String(os_getTime())+ ":";
   switch (ev) {
     case EV_SCAN_TIMEOUT:
       Serial.println(F("EV_SCAN_TIMEOUT"));
+      loraMsg+="SCAN_TIMEOUT";
       break;
     case EV_BEACON_FOUND:
       Serial.println(F("EV_BEACON_FOUND"));
+      loraMsg+="BEACON_TIMEOUT";
       break;
     case EV_BEACON_MISSED:
       Serial.println(F("EV_BEACON_MISSED"));
+      loraMsg+="BEACON_MISSED";
       break;
     case EV_BEACON_TRACKED:
       Serial.println(F("EV_BEACON_TRACKED"));
+      loraMsg+="BEACON_TRACKED";
       break;
     case EV_JOINING:
       Serial.println(F("EV_JOINING"));
+      loraMsg+="JOINING";
       break;
     case EV_JOINED:
+      loraMsg+="JOINED";
       Serial.println(F("EV_JOINED"));
       break;
     /*
@@ -56,37 +63,48 @@ void onEvent (ev_t ev) {
     */
     case EV_JOIN_FAILED:
       Serial.println(F("EV_JOIN_FAILED"));
+      loraMsg+="JOIN_FAILED";
       break;
     case EV_REJOIN_FAILED:
       Serial.println(F("EV_REJOIN_FAILED"));
+      loraMsg+="REJOIN_FAILED";
       break;
     case EV_TXCOMPLETE:
       Serial.println(F("EV_TXCOMPLETE (includes waiting for RX windows)"));
-      if (LMIC.txrxFlags & TXRX_ACK)
+      loraMsg+="TXCOMPLETE";
+      if (LMIC.txrxFlags & TXRX_ACK) {
         Serial.println(F("Received ack"));
+        loraMsg+=" RCVDack";
+      }
       if (LMIC.dataLen) {
         Serial.println(F("Received "));
         Serial.println(LMIC.dataLen);
         Serial.println(F(" bytes of payload"));
+        loraMsg+=" RCVD " + String(LMIC.dataLen) + "PLD";
       }
       // Schedule next transmission
       os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(TX_INTERVAL), do_send);
       break;
     case EV_LOST_TSYNC:
       Serial.println(F("EV_LOST_TSYNC"));
+      loraMsg += "LOST_TSYNC";
       break;
     case EV_RESET:
+      loraMsg += "RESET";
       Serial.println(F("EV_RESET"));
       break;
     case EV_RXCOMPLETE:
       // data received in ping slot
+      loraMsg += "RXCOMPLETE";
       Serial.println(F("EV_RXCOMPLETE"));
       break;
     case EV_LINK_DEAD:
       Serial.println(F("EV_LINK_DEAD"));
+      loraMsg += "LINK_DEAD";
       break;
     case EV_LINK_ALIVE:
       Serial.println(F("EV_LINK_ALIVE"));
+      loraMsg += "LINK_ALIVE";
       break;
     /*
       || This event is defined but not used in the code. No
@@ -98,10 +116,12 @@ void onEvent (ev_t ev) {
     */
     case EV_TXSTART:
       Serial.println(F("EV_TXSTART"));
+      loraMsg += "TXSTART";
       break;
     default:
       Serial.print(F("Unknown event: "));
       Serial.println((unsigned) ev);
+      loraMsg += "UNKNOWN";
       break;
   }
 }

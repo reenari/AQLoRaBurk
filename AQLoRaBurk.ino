@@ -21,10 +21,15 @@
 #include <SPI.h>
 #include "settings.h"
 // Sensor support libraries
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
-#include <Adafruit_BME680.h>
 #include "SDS011.h"
+#include <HardwareSerial.h>
+
+#include "SSD1306.h" 
+
+#include "bsec.h"
+
+
+
 #include "QuickStats.h"
 
 QuickStats stats;
@@ -38,45 +43,47 @@ static uint8_t payload[payloadSize];
 #define SDA 2
 #define SCL 1
 
-#define BME680_HEATING_TIME 150 // milliseconds
-#define SDS011_RXPIN 39
-#define SDS011_TXPIN 36
 
-// BME280 sensor
-Adafruit_BME280 bme280;
-uint8_t bme280_ok = 0;
-uint32_t bme280_lastRead = 0;
-uint32_t bme280_lastSend = 0;
-float bme280_lastHumi = -999;
-float bme280_lastTemp = -999;
-float bme280_lastPres = -999;
-
-// BME680 AQ sensor
-Adafruit_BME680 bme680;
-uint8_t bme680_ok = 0;
-uint32_t bme680_lastRead = 0;
-uint32_t bme680_lastSend = 0;
-float bme680_lastTemp = -999;
-float bme680_lastHumi = -999;
-float bme680_lastPres = -999;
-float bme680_lastGas = -999;
 
 SDS011 sds011;
+
+#define DUST_SERIAL_RX  39
+#define DUST_SERIAL_TX  36
+//#define SDS011_RXPIN 39
+//#define SDS011_TXPIN 36
+
+HardwareSerial dustSerial(1);
+
 uint8_t sds011_ok = 0;
 #define pm_array_size 120
 uint32_t pm_array_counter = 0;
 float sds011_pm25[pm_array_size];
 float sds011_pm10[pm_array_size];
 
+SSD1306 display(0x3c, 21, 22);
+
+
+Bsec iaqSensor;
+String output;
+
 static osjob_t sendjob;
 
 void setup() {
+    pinMode(16,OUTPUT);
+      digitalWrite(16, LOW);    // set GPIO16 low to reset OLED
+  delay(50); 
+  digitalWrite(16, HIGH); // while OLED is running, must set GPIO16 in high
+  display.init();
+  display.flipScreenVertically();  
+  display.setFont(ArialMT_Plain_10);
+
   while (!Serial); // wait for Serial to be initialized
   Serial.begin(115200);
   delay(100);     // per sample code on RF_95 test
   Serial.println(F("Starting"));
   // SDS011 serial
-  Serial2.begin(9600, SERIAL_8N1, SDS011_RXPIN, SDS011_TXPIN);
+//  Serial2.begin(9600, SERIAL_8N1, DUST_SERIAL_RX /*SDS011_RXPIN*/, DUST_SERIAL_TX /*SDS011_TXPIN*/);
+  dustSerial.begin(9600, SERIAL_8N1, DUST_SERIAL_RX, DUST_SERIAL_TX);
   init_sensors();
   lmic_init();
   // Start job
@@ -87,16 +94,34 @@ void setup() {
   }
 }
 
+String msg;
+String bme680Msg1;
+String bme680Msg2;
+String loraMsg;
+
 void loop() {
   unsigned long now;
   now = millis();
+  ostime_t ostime = os_getTime();
+  
   if ((now & 512) != 0) {
     digitalWrite(13, HIGH);
   }
   else {
     digitalWrite(13, LOW);
   }
-  read_sensors();
+  String m = read_sensors();
+
+  display.clear();
+  display.drawString(0, 0, String(now) + " ms, " + String(ostime) + " ticks");
+  display.drawString(0,10, msg);
+  display.drawString(0,20, m);
+  display.drawString(0,30, bme680Msg1);
+  display.drawString(0,40, bme680Msg2);
+  display.drawString(0,50, loraMsg);
+  
+  display.display();
+
   os_runloop_once();
 }
 
@@ -138,6 +163,7 @@ void generatePayload() {
   cx = snprintf ( buffer, 100, "Values to send: min2.5 %.1f max2.5 %.1f avg2.5 %.1f med2.5 %.1f min10 %.1f max10 %.1f avg10 %.1f med10 %.1f",
                   min25, max25, avg25, med25, min10, max10, avg10, med10 );
 
+msg = String(med25)+ " " + String(med10);
   Serial.println(buffer);
   uint16_t tmp;
   uint8_t i = 0;
